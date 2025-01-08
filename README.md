@@ -1,6 +1,7 @@
 # Whisper GUI
 
-An interface to streamline transcriptions using Whisper.  
+An interface to streamline transcriptions using Whisper v3.
+https://huggingface.co/nizarmichaud/whisper-large-v3-turbo-swissgerman
 
 - transcribe video files up to ~ 25 MiB
 - transcribe audio files of any size  
