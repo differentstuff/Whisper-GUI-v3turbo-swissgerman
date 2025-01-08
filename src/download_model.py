@@ -19,8 +19,7 @@ def download_model():
     model = WhisperForConditionalGeneration.from_pretrained(
         model_id,
         cache_dir=cache_dir,
-        local_files_only=False,  # Allow download if not present
-        use_legacy_cache=False   # Avoid deprecation warning
+        local_files_only=False  # Allow download if not present
     )
     
     print("Model downloaded successfully!")
