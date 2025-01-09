@@ -4,6 +4,7 @@ from nicegui import app, ui, events
 import asyncio
 from io import StringIO
 from logging import getLogger, StreamHandler
+from queue import Queue
 from pydub import AudioSegment
 import math
 import glob
@@ -13,7 +14,7 @@ from typing import List, Optional
 
 class ViewModel:
     def __init__(self):
-        self.button_file_content = 'choose audio files'
+        self.button_file_content = 'choose audio / video files'
         self.selected_files = None
         self.label_progress_content = ''
         self.button_run_enabled = False
@@ -29,6 +30,25 @@ class ViewModel:
         self.selected_output_formats = []
         self.is_transcribing = False
         self.abort_requested = False
+        self.model = None
+        self.console_queue = Queue()
+        self.ui_update_queue = Queue()
+        ui.timer(0.1, self.process_ui_updates)
+
+    def process_console_messages(self):
+        while not self.console_queue.empty():
+            message = self.console_queue.get()
+            if self.ui_log:
+                self.ui_log.push(message)
+
+    def process_ui_updates(self):
+        while not self.ui_update_queue.empty():
+            update = self.ui_update_queue.get()
+            if update['type'] == 'notify':
+                ui.notify(update['message'], type=update['notify_type'])
+            elif update['type'] == 'log':
+                if self.ui_log:
+                    self.ui_log.push(update['message'])
             
     def update_label_progress(self):
         if self.file_count <= 0:
@@ -56,23 +76,57 @@ class ViewModel:
             self.label_progress_content = info
         self.file_count_old = self.file_count
     
-    def update_buttons(self):
-        if self.selected_files is None or len(self.selected_files) == 0:
+    def update_button_states(self):
+        """Update button states based on file and format selection"""
+        if self.is_transcribing:
             self.button_run_enabled = False
-            self.button_file_content = 'choose audio / video files'
+            self.button_abort_visible = True
         else:
-            if len(self.selected_files) == 1:
-                self.button_file_content = '1 file selected'
-            else:    
-                self.button_file_content = f'{len(self.selected_files)} files selected'
-            if self.selected_output_formats is None or len(self.selected_output_formats) == 0:
+            self.button_abort_visible = False
+            if self.selected_files is None or len(self.selected_files) == 0:
+                self.button_file_content = 'choose audio / video files'
                 self.button_run_enabled = False
             else:
-                self.button_run_enabled = True
+                self.button_file_content = '1 file selected' if len(self.selected_files) == 1 else f'{len(self.selected_files)} files selected'
+                formats = app.storage.general.get('selected_output_format', [])
+                self.button_run_enabled = bool(formats) and bool(self.selected_files)
 
     def update_select_output_formats(self, e: events.ValueChangeEventArguments):
+        """Update output formats"""
         self.selected_output_formats = e.value
-        self.update_buttons()
+        app.storage.general['selected_output_format'] = e.value
+        self.update_button_states()
+
+    async def start_transcription(self):
+        """Handle start button click"""
+        if not self.is_transcribing:
+            self.is_transcribing = True
+            self.update_button_states()
+            try:
+                from src.file_handler import transcribe_files
+                await transcribe_files(
+                    self.selected_files,
+                    app.storage.general['selected_output_format'],
+                    self,
+                    self.model,
+                    self.update_ui
+                )
+            except Exception as e:
+                self.update_ui(f"Transcription error: {str(e)}", "negative")
+            finally:
+                self.is_transcribing = False
+                self.update_button_states()
+
+    def update_ui(self, message, notify_type=None):
+        """Queue UI updates to be processed in the main thread"""
+        if notify_type:
+            self.ui_update_queue.put({'type': 'notify', 'message': message, 'notify_type': notify_type})
+        self.ui_update_queue.put({'type': 'log', 'message': message})
+
+    def abort_transcription(self):
+        """Handle abort button click"""
+        self.abort_requested = True
+        ui.notify("Aborting transcription...", type="warning")
 
     def toggle_mute():
         app.storage.general['mute'] = not app.storage.general['mute']
@@ -185,18 +239,34 @@ class TranscriptionHandler:
         msecs = int((seconds % 1) * 1000)
         return f"{hours:02d}:{minutes:02d}:{secs:02d},{msecs:03d}"
 
-async def start_reading_console():
+async def start_reading_console(viewmodel):
+    """Capture console output and queue it for display in UI"""
     string_io = StringIO()
-    sys.stdout = string_io
-    sys.stderr = string_io
-    stream_handler = StreamHandler(string_io)
-    stream_handler.setLevel("DEBUG")
-    logger = getLogger(__name__)
-    logger.setLevel("DEBUG")
-    logger.addHandler(stream_handler)
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
     
-    while True:
-        await asyncio.sleep(1)
-        ui.log().push(string_io.getvalue())
-        string_io.truncate(0)
-        string_io.seek(0)
+    try:
+        sys.stdout = string_io
+        sys.stderr = string_io
+        
+        viewmodel.console_queue.put("\nConsole ready - output will appear here")
+        
+        while True:
+            content = string_io.getvalue()
+            if content:
+                # Write to original stdout for debugging
+                original_stdout.write(content)
+                original_stdout.flush()
+                # Queue content for UI update
+                viewmodel.console_queue.put(content)
+                string_io.truncate(0)
+                string_io.seek(0)
+            await asyncio.sleep(0.1)
+    except Exception as e:
+        error_msg = f"Console reader failed: {str(e)}\n"
+        original_stderr.write(error_msg)
+        original_stderr.flush()
+        viewmodel.console_queue.put(error_msg)
+    finally:
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr

@@ -14,7 +14,7 @@ def verify_ffmpeg():
         return True
             
     print("\nERROR: ffmpeg not found!")
-    print("\nPlease install ffmpeg as current user:")
+    print("\nPlease install ffmpeg:")
     if sys.platform == "win32":
         print("\n1. Open Command Prompt (not as Administrator)")
         print("2. Run: winget install ffmpeg")

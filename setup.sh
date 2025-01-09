@@ -7,7 +7,8 @@ source venv/bin/activate
 
 echo "Installing dependencies..."
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+pip install git+https://github.com/huggingface/accelerate
+pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu118
 
 echo "Verifying ffmpeg installation..."
 python src/verify_ffmpeg.py
