@@ -5,7 +5,7 @@ import shutil
 
 def verify_ffmpeg():
     """Verify ffmpeg installation in user space"""
-    print("Verifying ffmpeg installation...")
+    print("\nVerifying ffmpeg installation...")
     
     # Check if ffmpeg is accessible
     ffmpeg_path = shutil.which("ffmpeg")
@@ -13,8 +13,8 @@ def verify_ffmpeg():
         print(f"Found ffmpeg at: {ffmpeg_path}")
         return True
             
-    print("\nERROR: ffmpeg not found!")
-    print("\nPlease install ffmpeg:")
+    print("ERROR: ffmpeg not found!")
+    print("Please install ffmpeg:")
     if sys.platform == "win32":
         print("\n1. Open Command Prompt (not as Administrator)")
         print("2. Run: winget install ffmpeg")

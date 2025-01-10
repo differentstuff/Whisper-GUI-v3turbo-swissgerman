@@ -32,16 +32,41 @@ def abort_transcription(viewmodel):
     print("\nAborting transcription after current file completes...")
     ui.notify("Aborting transcription...")
 
-async def transcribe_files(files, output_format, viewmodel, model, update_ui):
-    """Transcribe audio files with comprehensive error handling and user feedback"""
-    # Print debug info
+async def transcribe_files(
+    files,
+    output_format,
+    viewmodel,
+    model,
+    update_ui,
+    model_name,
+    language='Auto'
+):
+    """
+    Transcribe audio files with support for custom model and language selection
+    
+    :param files: List of audio files to transcribe
+    :param output_format: List of output formats
+    :param viewmodel: ViewModel instance
+    :param model: WhisperModelHandler instance
+    :param update_ui: UI update callback
+    :param model_name: Name of the model to use (default: Swiss German model)
+    :param language: Language for transcription (default: Auto)
+    """
+
     viewmodel.update_ui("\n=== Starting Transcription ===")
     viewmodel.update_ui(f"• Files: {len(files) if files else 0}")
     viewmodel.update_ui(f"• Formats: {output_format}")
     viewmodel.update_ui(f"• Model: {'Initialized' if model else 'Not initialized'}")
+    viewmodel.update_ui(f"• Language: {language}")
     viewmodel.update_ui(f"• Processor: {'Loaded' if model and model.processor else 'Not loaded'}")
     viewmodel.update_ui(f"• Device: {model.device if model else 'None'}")
     
+    if files:
+        need_splitting_count = sum(1 for file in viewmodel.selected_files 
+                                 if AudioSplitter.get_segment_count(file) > 1)
+        if need_splitting_count > 0:
+            ui.notify(f'{"1 file needs" if need_splitting_count == 1 else f"{need_splitting_count} files need"} to be split')
+
     if not files:
         viewmodel.update_ui('No files selected', 'warning')
         return
@@ -100,7 +125,7 @@ async def transcribe_files(files, output_format, viewmodel, model, update_ui):
             viewmodel.update_ui("Subsequent runs will use the cached model.")
             try:
                 await asyncio.to_thread(model.load_model)
-                viewmodel.update_ui("✓ Model loaded successfully")
+                viewmodel.update_ui("> Model loaded successfully")
                 if model.device == "cuda":
                     viewmodel.update_ui(f"GPU Memory Usage: {torch.cuda.memory_allocated() / 1024**2:.1f}MB")
                     viewmodel.update_ui(f"GPU: {torch.cuda.get_device_name(0)}")
@@ -108,7 +133,7 @@ async def transcribe_files(files, output_format, viewmodel, model, update_ui):
                     viewmodel.update_ui(f"CPU Memory Usage: {psutil.Process().memory_info().rss / 1024**2:.1f}MB")
             except Exception as e:
                 error_msg = f"Failed to load model: {str(e)}"
-                viewmodel.update_ui(f"\n❌ {error_msg}", 'negative')
+                viewmodel.update_ui(f"\nX {error_msg}", 'negative')
                 # Reset UI state on error
                 viewmodel.is_transcribing = False
                 viewmodel.button_abort_visible = False
@@ -154,7 +179,7 @@ async def transcribe_files(files, output_format, viewmodel, model, update_ui):
                     await asyncio.to_thread(TranscriptionHandler.save_result, results[0], output_format, file)
                 
                 processed_files.append(file)
-                print(f"Completed: {os.path.basename(file)}")
+                print(f"Transcription completed of file: {os.path.basename(file)}")
                 
             except Exception as e:
                 print(f"\nError processing file {os.path.basename(file)}: {str(e)}")

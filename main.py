@@ -1,15 +1,14 @@
 import random
 import os
+import string
 import torch
 import psutil
 import asyncio
+import secrets
 from nicegui import app, ui
 from src.model_handler import WhisperModelHandler
-from src.gui_handler import ViewModel, start_reading_console
-from src.file_handler import (
-    OUTPUT_FORMATS,
-    choose_files
-)
+from src.gui_handler import ViewModel, start_reading_console, list_downloaded_models, mark_downloaded_models, LANGUAGES
+from src.file_handler import OUTPUT_FORMATS, choose_files
 
 # Suppress console output from NiceGUI
 import logging
@@ -19,8 +18,10 @@ logging.getLogger('watchfiles').setLevel(logging.WARNING)
 # Suppress unnecessary output
 os.environ['PYTHONWARNINGS'] = 'ignore'
 
+app_name = 'Whisper Transcribe v2'
 viewmodel = ViewModel()
 model = None  # Will be initialized in startup
+MODELS = ['nizarmichaud/whisper-large-v3-turbo-swissgerman', 'openai/whisper-large-v3-turbo']
 
 @ui.page('/')
 def main_page():
@@ -32,20 +33,33 @@ def main_page():
     viewmodel.selected_output_formats = app.storage.general['selected_output_format']
     viewmodel.update_button_states()  # Update button state based on initial format
     
+    if 'selected_language' not in app.storage.general:
+        app.storage.general['selected_language'] = 'Auto'
+        
+    if 'selected_model' not in app.storage.general:
+        app.storage.general['selected_model'] = MODELS[0]
+
     if 'mute' not in app.storage.general:
         app.storage.general['mute'] = False
+        
+    if 'dark' not in app.storage.general:
+        app.storage.general['dark'] = False
     
     # Build UI
     with ui.column().classes('w-full'):
         with ui.row().classes('w-full items-center'):
             ui.icon('record_voice_over', color='primary').classes('text-4xl')
-            ui.label('Swiss German Whisper Transcribe').classes('text-primary').style('font-size: 150%')
+            ui.label(app_name).classes('text-primary').style('font-size: 150%')
             ui.space()
-            with ui.column():
+            with ui.row():
                 ui.button(icon='volume_up', on_click=ViewModel.toggle_mute) \
                     .props('outline round').tooltip('play sound').bind_visibility_from(app.storage.general, 'mute', value=False)
                 ui.button(icon='volume_off', on_click=ViewModel.toggle_mute) \
                     .props('outline round').tooltip('mute').bind_visibility_from(app.storage.general, 'mute', value=True)
+                ui.button(icon='light_mode', on_click=ViewModel.toggle_dark_mode) \
+                    .props('outline round').tooltip('light mode').bind_visibility_from(app.storage.general, 'dark', value=True)
+                ui.button(icon='dark_mode', on_click=ViewModel.toggle_dark_mode) \
+                    .props('outline round').tooltip('dark mode').bind_visibility_from(app.storage.general, 'dark', value=False)
         
         ui.button(icon='insert_drive_file', on_click=lambda: choose_files(viewmodel)) \
             .bind_text_from(viewmodel, 'button_file_content').style('margin-top: 8px')
@@ -55,6 +69,29 @@ def main_page():
             .classes('w-full') \
             .bind_value(app.storage.general, 'selected_output_format') \
             .props('use-chips')
+
+        # Model selection dropdown
+        downloaded_models = list_downloaded_models()
+        model_options = [mark_downloaded_models(m, downloaded_models) for m in MODELS]
+        stored_model = app.storage.general.get('selected_model')
+        initial_model = stored_model if stored_model in MODELS else MODELS[0]
+        # Create a mapping of marked options to actual model names for the select component
+        model_mapping = {mark_downloaded_models(m, downloaded_models): m for m in MODELS}
+        ui.select(
+            options=model_options, 
+            label='model',
+            value=mark_downloaded_models(initial_model, downloaded_models),
+            on_change=lambda e: app.storage.general.__setitem__('selected_model', model_mapping[e.value])
+            ).classes('w-full')
+
+        # Language selection dropdown
+        ui.select(
+            options=LANGUAGES, 
+            label='language',
+            on_change=viewmodel.update_language_selection
+            ).classes('w-full').bind_value(
+                app.storage.general, 'selected_language'
+                )
         
         ui.label('Results are saved in the same directory as the original files.') \
             .style('color: #808080; font-style: italic; margin-top: 16px')
@@ -93,7 +130,7 @@ def initialize_model(device: str):
         print(f"Initializing model handler on {device.upper()}...")
         return WhisperModelHandler(device=device)
     except Exception as e:
-        print(f"\n❌ Error initializing model: {str(e)}")
+        print(f"\nX Error initializing model: {str(e)}")
         ui.notify("Error initializing model", type="negative", timeout=10000)
         return None
 
@@ -127,7 +164,7 @@ async def startup():
     if viewmodel.ui_log:
         viewmodel.ui_log.clear()
     
-    print("\n=== Swiss German Whisper Transcribe ===")
+    print(f"\n=== {app_name} ===")
     print("Initializing system...")
     
     # Determine device based on system capabilities
@@ -136,15 +173,14 @@ async def startup():
         gpu_name = torch.cuda.get_device_name(0)
         vram = torch.cuda.get_device_properties(0).total_memory / 1024**2
         print("\n=== System Information ===")
+        if vram >= 4000:  # Need at least 4GB VRAM
+            device = "cuda"
+            print("> Using GPU for processing")
+        else:
+            print("! Limited GPU memory - using CPU for better reliability")
         print(f"GPU: {gpu_name}")
         print(f"VRAM Available: {vram:.0f}MB")
         print(f"RAM Usage: {psutil.Process().memory_info().rss / 1024**2:.1f}MB")
-        
-        if vram >= 4000:  # Need at least 4GB VRAM
-            device = "cuda"
-            print("✓ Using GPU for processing")
-        else:
-            print("⚠️  Limited GPU memory - using CPU for better reliability")
     else:
         print("\n=== System Information ===")
         print("• CPU Only Mode")
@@ -154,7 +190,7 @@ async def startup():
     from src.verify_ffmpeg import verify_ffmpeg
     if not verify_ffmpeg():
         viewmodel.button_run_enabled = False
-        ui.notify("Please install ffmpeg as current user", type="negative", timeout=10000)
+        ui.notify("\nPlease install ffmpeg", type="negative", timeout=10000)
         return
     
     # Initialize model handler
@@ -162,26 +198,32 @@ async def startup():
         print("\n=== Model Initialization ===")
         viewmodel.model = initialize_model(device)
         if viewmodel.model is None:
-            print("❌ Model initialization failed")
+            print("\nX Model initialization failed")
             viewmodel.button_run_enabled = False
             return
             
         # Don't load model at startup - wait for first transcription
         viewmodel.button_run_enabled = True
-        print("✓ Model handler initialized - will load model when needed")
+        print("\n> Model handler initialized - will load model when needed")
             
     except Exception as e:
         print(f"\nError during startup: {str(e)}")
         viewmodel.button_run_enabled = False
         ui.notify("Startup failed. Please check the console for details.", type="negative", timeout=10000)
 
+def generate_secret(length=16):
+    characters = string.ascii_letters + string.digits + string.punctuation
+    return ''.join(secrets.choice(characters) for _ in range(length))
+
+strong_secret = generate_secret()
+
 ui.run(
-    title='Swiss German Whisper Transcribe',
+    title=app_name,
     reload=False,
     native=True,
-    window_size=[500,800],
-    storage_secret='foobar',
+    window_size=[500,900],
+    storage_secret=strong_secret,
     show=False,  # Suppress extra window
-    dark=True,   # Use dark theme
+    dark=False,   # Use light theme
     port=random.randint(49152, 65535)  # Random port to avoid conflicts
 )

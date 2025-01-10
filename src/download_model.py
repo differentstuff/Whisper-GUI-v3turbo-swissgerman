@@ -1,12 +1,11 @@
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 import os
 
-def download_model():
-    print("\nDownloading Swiss German Whisper model (this may take a while)...")
-    model_id = "nizarmichaud/whisper-large-v3-turbo-swissgerman"
+def download_model(model_id = "nizarmichaud/whisper-large-v3-turbo-swissgerman"):
+    print(f"\nDownloading model {model_id} (this may take a while)...")
     
     # Set up cache directory
-    cache_dir = os.path.join(os.path.dirname(__file__), "..", "model_cache")
+    cache_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model_cache") # use os.path.dirname twice to go one level up instead of using '..'
     os.makedirs(cache_dir, exist_ok=True)
     print(f"Model will be cached in: {cache_dir}")
     

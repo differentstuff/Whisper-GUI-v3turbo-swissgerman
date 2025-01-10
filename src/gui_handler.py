@@ -12,6 +12,40 @@ import openpyxl
 import simpleaudio
 from typing import List, Optional
 
+# Language list
+LANGUAGES = [
+    'Auto',
+    'Afrikaans', 'Arabic', 'Armenian', 'Azerbaijani', 'Belarusian', 'Bosnian', 'Bulgarian', 'Catalan', 'Chinese', 'Croatian', 'Czech', 'Danish', 'Dutch',
+    'English', 'Estonian', 'Finnish', 'French', 'Galician', 'German', 'Greek', 'Hebrew', 'Hindi', 'Hungarian', 'Icelandic', 'Indonesian', 'Italian',
+    'Japanese', 'Kannada', 'Kazakh', 'Korean', 'Latvian', 'Lithuanian', 'Macedonian', 'Malay', 'Marathi', 'Maori', 'Nepali', 'Norwegian', 'Persian',
+    'Polish', 'Portuguese', 'Romanian', 'Russian', 'Serbian', 'Slovak', 'Slovenian', 'Spanish', 'Swahili', 'Swedish', 'Tagalog', 'Tamil', 'Thai', 
+    'Turkish', 'Ukrainian', 'Urdu', 'Vietnamese', 'Welsh'
+]
+
+def list_downloaded_models(cache_dir='model_cache'):
+    """
+    List downloaded models from the model_cache directory.
+    Ignores hidden directories (starting with '.')
+    Returns a list of available model names.
+    """
+    base_path = os.path.join(os.path.dirname(__file__), '..', cache_dir)
+    try:
+        models = [
+            d for d in os.listdir(base_path) 
+            if os.path.isdir(os.path.join(base_path, d)) 
+            and not d.startswith('.')
+        ]
+        return models
+    except FileNotFoundError:
+        return []
+
+def mark_downloaded_models(model_name, downloaded_models):
+    """
+    Add a marker to downloaded models.
+    """
+    cache_name = f"models--{model_name.replace('/', '--')}"
+    return f"{'✓' if cache_name in downloaded_models else 'X'} {model_name}"
+
 class ViewModel:
     def __init__(self):
         self.button_file_content = 'choose audio / video files'
@@ -57,7 +91,7 @@ class ViewModel:
             self.segment_current_progress = 0
             self.segment_count = 0
             self.segment_done_count = 0
-            ui.notify('finished transcribing')
+            self.ui_update_queue.put({'type': 'notify', 'message': 'finished transcribing', 'notify_type': 'positive'})
             self.play_sound_effect_finished()
         else:
             if self.file_count_old == 0:
@@ -97,6 +131,16 @@ class ViewModel:
         app.storage.general['selected_output_format'] = e.value
         self.update_button_states()
 
+    def update_model_selection(self, e: events.ValueChangeEventArguments):
+        """Update selected model"""
+        # Extract model name without the ✓/X prefix
+        model_name = e.value.split(' ', 1)[1] if e.value else None
+        app.storage.general['selected_model'] = model_name
+
+    def update_language_selection(self, e: events.ValueChangeEventArguments):
+        """Update selected language"""
+        app.storage.general['selected_language'] = e.value
+
     async def start_transcription(self):
         """Handle start button click"""
         if not self.is_transcribing:
@@ -109,12 +153,17 @@ class ViewModel:
                     app.storage.general['selected_output_format'],
                     self,
                     self.model,
-                    self.update_ui
+                    self.update_ui,
+                    model_name=app.storage.general['selected_model'],
+                    language=app.storage.general['selected_language']
                 )
             except Exception as e:
                 self.update_ui(f"Transcription error: {str(e)}", "negative")
             finally:
                 self.is_transcribing = False
+                self.abort_requested = False
+                self.file_count = 0
+                self.update_label_progress()
                 self.update_button_states()
 
     def update_ui(self, message, notify_type=None):
@@ -126,10 +175,17 @@ class ViewModel:
     def abort_transcription(self):
         """Handle abort button click"""
         self.abort_requested = True
-        ui.notify("Aborting transcription...", type="warning")
+        self.ui_update_queue.put({'type': 'notify', 'message': 'Aborting transcription...', 'notify_type': 'warning'})
 
-    def toggle_mute():
+    def toggle_mute(self):
         app.storage.general['mute'] = not app.storage.general['mute']
+        self.ui_update_queue.put({'type': 'notify', 'message': 'Sound ' + ('unmuted' if not app.storage.general['mute'] else 'muted'), 'notify_type': 'info'})
+
+    def toggle_dark_mode(self):
+        app.storage.general['dark'] = not app.storage.general.get('dark', False)
+        # ui.dark_mode is safe to call directly as it's a global UI state change
+        ui.dark_mode(app.storage.general['dark'])
+        self.ui_update_queue.put({'type': 'notify', 'message': 'Dark mode ' + ('enabled' if app.storage.general['dark'] else 'disabled'), 'notify_type': 'info'})
 
     def play_sound_effect_finished(self):
         if not app.storage.general.get('mute', False):
