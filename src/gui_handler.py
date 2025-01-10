@@ -148,7 +148,8 @@ class ViewModel:
             self.update_button_states()
             try:
                 from src.file_handler import transcribe_files
-                await transcribe_files(
+                # Store the model instance returned from transcribe_files
+                result = await transcribe_files(
                     self.selected_files,
                     app.storage.general['selected_output_format'],
                     self,
@@ -157,6 +158,9 @@ class ViewModel:
                     model_name=app.storage.general['selected_model'],
                     language=app.storage.general['selected_language']
                 )
+                # Update the model instance if a new one was created
+                if isinstance(result, tuple) and len(result) == 2:
+                    self.model = result[0]
             except Exception as e:
                 self.update_ui(f"Transcription error: {str(e)}", "negative")
             finally:

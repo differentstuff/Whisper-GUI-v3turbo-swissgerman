@@ -117,20 +117,25 @@ async def transcribe_files(
             viewmodel.update_ui("\nError: Model not initialized", 'negative')
             return
         
-        # Load model if needed
-        if model.processor is None:
+        # Check if we need to initialize or reload the model
+        need_new_model = model is None or (model_name and model.model_id != model_name)
+        if need_new_model:
             viewmodel.update_ui("\n=== Loading Model ===")
-            viewmodel.update_ui("Loading Swiss German specialized model...")
-            viewmodel.update_ui("This will download ~3GB of data on first run.")
+            viewmodel.update_ui(f"Loading model: {model_name}")
+            viewmodel.update_ui("This will download model data on first run.")
             viewmodel.update_ui("Subsequent runs will use the cached model.")
             try:
+                # Initialize new model with selected model_id
+                model = WhisperModelHandler(device="cuda" if torch.cuda.is_available() else "cpu", model_id=model_name)
                 await asyncio.to_thread(model.load_model)
-                viewmodel.update_ui("> Model loaded successfully")
+                viewmodel.update_ui(f"> Model loaded successfully: {model_name}")
                 if model.device == "cuda":
                     viewmodel.update_ui(f"GPU Memory Usage: {torch.cuda.memory_allocated() / 1024**2:.1f}MB")
                     viewmodel.update_ui(f"GPU: {torch.cuda.get_device_name(0)}")
                 else:
                     viewmodel.update_ui(f"CPU Memory Usage: {psutil.Process().memory_info().rss / 1024**2:.1f}MB")
+                # Store the new model in viewmodel
+                viewmodel.model = model
             except Exception as e:
                 error_msg = f"Failed to load model: {str(e)}"
                 viewmodel.update_ui(f"\nX {error_msg}", 'negative')

@@ -81,9 +81,14 @@ AUDIO_CONFIG = {
 }
 
 class WhisperModelHandler:
-    def __init__(self, device=None):
-        """Initialize the Swiss German Whisper model handler"""
-        self.model_id = "nizarmichaud/whisper-large-v3-turbo-swissgerman"
+    def __init__(self, device=None, model_id=None):
+        """Initialize the Whisper model handler
+        
+        Args:
+            device: Device to use (cuda or cpu)
+            model_id: Model ID to use (e.g., "openai/whisper-large-v3").
+        """
+        self.model_id = model_id
         
         # Initialize CUDA if requested
         if device == "cuda" and torch.cuda.is_available():
