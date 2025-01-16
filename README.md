@@ -121,7 +121,7 @@ The transcribed files will be saved in the same directory as the input files, wi
 
 - **Model**: [Whisper Large V3 Turbo Swiss German](https://huggingface.co/nizarmichaud/whisper-large-v3-turbo-swissgerman)
 - **Original Whisper model**: [OpenAI](https://github.com/openai/whisper)
-- **Whisper Interface v2**: Dimitri Gerster (gerdix)
+- **Whisper Interface v1**: [soer1i](https://github.com/soer1i/Whisper-GUI/tree/main)
 
 ## Known Bugs
 
