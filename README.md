@@ -87,6 +87,11 @@ The application works completely offline after the initial setup. No internet co
 
 The transcribed files will be saved in the same directory as the input files, with the same name but different extensions based on the selected output formats.
 
+## Configuring Audio Settings
+
+You can configure several audio-related settings in the file src/audio_config.py. 
+These settings are explained within that file. Please refer to it for further customization options.
+
 ## Supported File Formats
 
 ### Audio
