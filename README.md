@@ -87,10 +87,10 @@ The application works completely offline after the initial setup. No internet co
 
 The transcribed files will be saved in the same directory as the input files, with the same name but different extensions based on the selected output formats.
 
-## Configuring Audio Settings
+### Configuring Audio Settings
 
 You can configure several audio-related settings in the file src/audio_config.py. 
-These settings are explained within that file. Please refer to it for further customization options.
+These settings are explained in detail within that file. Please refer to it for further customization options.
 
 ## Supported File Formats
 
@@ -126,7 +126,7 @@ These settings are explained within that file. Please refer to it for further cu
 
 - **Model**: [Whisper Large V3 Turbo Swiss German](https://huggingface.co/nizarmichaud/whisper-large-v3-turbo-swissgerman)
 - **Original Whisper model**: [OpenAI](https://github.com/openai/whisper)
-- **Whisper Interface v1**: [soer1i](https://github.com/soer1i/Whisper-GUI/tree/main)
+- **Whisper Interface v2**: Dimitri Gerster (gerdix)
 
 ## Known Bugs
 
