@@ -35,9 +35,7 @@ async def choose_files(viewmodel):
 
     if viewmodel.selected_files:
         logger.info(f"Selected {len(viewmodel.selected_files)} files")
-        need_splitting_count = sum(
-            1
-            for file in viewmodel.selected_files
+        need_splitting_count = sum( 1 for file in viewmodel.selected_files
             if AudioSplitter.get_segment_count(file) > 1
         )
         if need_splitting_count > 0:

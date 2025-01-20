@@ -30,8 +30,7 @@ AUDIO_CONFIG = {
         "gpu": {
             "duration": 30,  # Length of each audio chunk in seconds
             # Standard chunk size for good context
-            "overlap_ratio": 1
-            / 5,  # How much chunks overlap (1/5 = 6 seconds for 30s chunks)
+            "overlap_ratio": 1/5,  # How much chunks overlap (1/5 = 6 seconds for 30s chunks)
             # Balanced overlap for context preservation
             "step_ratio": 0.85,  # How far to advance between chunks (0.85 = 25.5s steps)
             # Conservative step size for stability
@@ -67,4 +66,10 @@ AUDIO_CONFIG = {
         # Increased to better detect and remove duplicates
     },
 }
+
+SPLIT_CONFIG = {
+    "max_file_size": 50000000, # 25000000 = 25MB
+    "overlap_ms": 2000 # 2000 = 20ms overlap
+}
+
 # endregion Config

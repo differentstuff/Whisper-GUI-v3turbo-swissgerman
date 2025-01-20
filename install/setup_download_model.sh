@@ -16,7 +16,7 @@ echo "Activating virtual environment..."
 source venv/bin/activate
 
 echo "Verifying model: $MODEL_ID"
-python s_download_model.py "$MODEL_ID" > /dev/null
+python install/s_download_model.py "$MODEL_ID" > /dev/null
 
 echo
 echo "Model setup complete!"

@@ -17,7 +17,6 @@ call venv\Scripts\activate.bat
 echo Installing dependencies...
 python -m pip install --upgrade pip
 
-
 :: Check accelerate installation
 pip show accelerate > nul 2>&1
 if errorlevel 1 (
@@ -28,11 +27,11 @@ if errorlevel 1 (
 )
 
 echo Installing other dependencies...
-pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu118
+pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
 
 
 :: Verify ffmpeg
-python s_verify_ffmpeg.py
+python install\s_verify_ffmpeg.py
 if errorlevel 1 (
     echo.
     echo Please install ffmpeg and run setup.bat again

@@ -11,6 +11,7 @@ import simpleaudio
 from typing import List
 import src.print_color as pc
 from src.logger_setup import gui_logger as logger
+from src.audio_config import SPLIT_CONFIG
 
 # endregion Imports
 
@@ -327,7 +328,7 @@ class ViewModel:
 class AudioSplitter:
     @staticmethod
     def split_audio(
-        file: str, max_size: int = 25000000, overlap_ms: int = 2000
+        file: str, max_size: int = SPLIT_CONFIG["max_file_size"], overlap_ms: int = SPLIT_CONFIG["overlap_ms"]
     ) -> List[tuple]:
         logger.info(f"Splitting audio file: {file}")
         split_files = []
@@ -363,7 +364,7 @@ class AudioSplitter:
         return split_files
 
     @staticmethod
-    def get_segment_count(file: str, max_size: int = 25000000) -> int:
+    def get_segment_count(file: str, max_size: int = SPLIT_CONFIG["max_file_size"]) -> int:
         logger.debug(f"Calculating segments for file: {file}")
         file_size = os.path.getsize(file)
         return math.ceil(file_size / max_size) if file_size > max_size else 1

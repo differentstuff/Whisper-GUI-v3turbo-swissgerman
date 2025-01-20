@@ -25,10 +25,10 @@ else
 fi
 
 echo "Installing other dependencies..."
-pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cu118
+pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu118
 
 # Verify ffmpeg installation
-python s_verify_ffmpeg.py
+python install/s_verify_ffmpeg.py
 if [ $? -ne 0 ]; then
     echo
     echo "Please install ffmpeg and run setup.sh again"
