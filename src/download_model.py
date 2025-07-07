@@ -1,7 +1,13 @@
+# region Imports
+
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 import os
 import src.print_color as pc
 
+# endregion Imports
+
+
+# region Functions
 
 def download_model(model_id="nizarmichaud/whisper-large-v3-turbo-swissgerman"):
     """
@@ -44,6 +50,12 @@ def download_model(model_id="nizarmichaud/whisper-large-v3-turbo-swissgerman"):
         pc.print_error(f"\nError: {error_msg}")
         raise
 
+# endregion Functions
+
+
+# region Main
 
 if __name__ == "__main__":
     download_model()
+
+# endregion Main

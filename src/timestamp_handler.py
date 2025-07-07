@@ -1,9 +1,11 @@
-"""
-Handles timestamp formatting for transcription output.
-"""
+# region Imports
 
-from typing import List, Tuple, Dict, Any
+from typing import Dict, Any
 
+# endregion Imports
+
+
+# region Functions
 
 def format_with_timestamps(transcription_data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -50,3 +52,5 @@ def format_without_timestamps(transcription_data: Dict[str, Any]) -> Dict[str, A
     result["text"] = merged_text
 
     return result
+
+# endregion Functions

@@ -1,13 +1,25 @@
+# region Imports
+
 import logging
 from logging.handlers import RotatingFileHandler
 import os
+import warnings
+
+# Configure root logger to ignore speechbrain
+warnings.filterwarnings('ignore')
+logging.getLogger('speechbrain').disabled = True
+
+# endregion Imports
+
+
+# region Logging
 
 # Create logs directory if it doesn't exist
 log_dir = "logs"
 os.makedirs(log_dir, exist_ok=True)
 
 
-def setup_logger(name, log_file, level=logging.INFO, console=False):
+def setup_logger(name, log_file, level=logging.WARNING, console=False):
     """Function to setup as many loggers as you want"""
 
     formatter = logging.Formatter(
@@ -55,3 +67,5 @@ model_logger = setup_logger("model_handler", "model_handler.log")
 
 # For verify_ffmpeg.py
 ffmpeg_logger = setup_logger("verify_ffmpeg", "verify_ffmpeg.log")
+
+# endregion Logging

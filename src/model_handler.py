@@ -1,4 +1,5 @@
 # region Imports
+
 from transformers import WhisperForConditionalGeneration, WhisperProcessor
 import torch
 import numpy as np
@@ -15,57 +16,63 @@ from src.audio_config import AUDIO_CONFIG
 
 
 # region Initialization
+
 pc.init()  # Initialize colorama
+
 # endregion Initialization
 
 
-# region Main
+# region Model Handler
+
 class WhisperModelHandler:
     def __init__(self, device=None, model_id=None):
         """Initialize the Whisper model handler"""
-
-        logger.info(
-            f"Initializing WhisperModelHandler with device={device}, model_id={model_id}"
-        )
+        logger.info(f"Initializing WhisperModelHandler with device={device}, model_id={model_id}")
         self.model_id = model_id
         self.timestamps_enabled = False
+        self.device = "cpu"  # Default to CPU
 
-        # Initialize CUDA if requested
-        if device == "cuda" and torch.cuda.is_available():
+        # Check system capabilities
+        if device == "cuda":
             try:
-                logger.info("Attempting CUDA initialization")
-                torch.cuda.init()
-                torch.cuda.empty_cache()
-                gpu_info = {
-                    "name": torch.cuda.get_device_name(0),
-                    "total_memory": torch.cuda.get_device_properties(0).total_memory
-                    / 1024**2,
-                    "free_memory": (
-                        torch.cuda.get_device_properties(0).total_memory
-                        - torch.cuda.memory_allocated()
-                    )
-                    / 1024**2,
-                }
-                logger.info(
-                    f"CUDA initialization successful. GPU: {gpu_info['name']}, Total VRAM: {gpu_info['total_memory']:.0f}MB, Free VRAM: {gpu_info['free_memory']:.0f}MB"
-                )
-
-                pc.print_info("GPU Configuration:")
-                pc.print_info(f"• Device: {gpu_info['name']}")
-                pc.print_info(f"• VRAM: {gpu_info['total_memory']:.0f}MB")
-                pc.print_info(f"• Free VRAM: {gpu_info['free_memory']:.0f}MB")
-                self.device = "cuda"
+                import torch
+                if torch.cuda.is_available():
+                    logger.info("Checking GPU capabilities")
+                    torch.cuda.init()
+                    torch.cuda.empty_cache()
+                    
+                    # Get GPU info
+                    vram = torch.cuda.get_device_properties(0).total_memory / 1024**2
+                    if vram >= AUDIO_CONFIG["model"]["min_gpu_memory"]:
+                        gpu_name = torch.cuda.get_device_name(0)
+                        free_vram = (torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_allocated()) / 1024**2
+                        
+                        logger.info(f"GPU detected: {gpu_name} with {vram:.0f}MB VRAM")
+                        pc.print_success("Using GPU for processing")
+                        pc.print_info("GPU Configuration:")
+                        pc.print_info(f"• Device: {gpu_name}")
+                        pc.print_info(f"• VRAM: {vram:.0f}MB")
+                        pc.print_info(f"• Free VRAM: {free_vram:.0f}MB")
+                        
+                        self.device = "cuda"
+                    else:
+                        logger.warning(f"Insufficient VRAM: {vram:.0f}MB (need {AUDIO_CONFIG['model']['min_gpu_memory']}MB)")
+                        pc.print_warning("Limited GPU memory - using CPU for better reliability")
+                else:
+                    logger.info("CUDA not available")
+                    pc.print_info("Using CPU mode (CUDA not available)")
             except Exception as e:
-                logger.error(f"CUDA initialization failed: {str(e)}", exc_info=True)
-                pc.print_error(f"\nError initializing CUDA: {str(e)}")
-                pc.print_warning("Falling back to CPU")
-                self.device = "cpu"
-        else:
-            logger.info(
-                "Using CPU mode" + (" (CUDA not available)" if device == "cuda" else "")
-            )
-            self.device = "cpu"
-            pc.print_info("\nUsing CPU mode")
+                logger.error(f"Error checking GPU: {str(e)}", exc_info=True)
+                pc.print_warning(f"GPU initialization failed, using CPU: {str(e)}")
+        
+        # Log RAM usage
+        try:
+            import psutil
+            ram_usage = psutil.Process().memory_info().rss / 1024**2
+            logger.info(f"RAM Usage: {ram_usage:.1f}MB")
+            pc.print_info(f"RAM Usage: {ram_usage:.1f}MB")
+        except:
+            logger.warning("Could not get RAM usage information")
 
         # Initialize model settings
         self.processor = None
@@ -1056,5 +1063,34 @@ class WhisperModelHandler:
         logger.info("Merge operation complete")
         return merged
 
+    def _cleanup(self):
+        """Clean up GPU resources"""
+        try:
+            if hasattr(self, 'alignment_model') and self.alignment_model is not None:
+                # Proper model cleanup
+                self.alignment_model.cpu()  # Move to CPU first
+                del self.alignment_model
+                self.alignment_model = None
+                self.alignment_language = None
 
-# endregion Main
+            if hasattr(self, 'model') and self.model is not None:
+                self.model.cpu()  # Move to CPU first
+                del self.model
+                self.model = None
+
+            if hasattr(self, 'processor'):
+                del self.processor
+                self.processor = None
+
+        except Exception as e:
+            logger.error(f"Error during cleanup: {str(e)}")
+
+        finally:
+            # Always attempt to clear CUDA cache if using GPU
+            if self.device == "cuda":
+                try:
+                    torch.cuda.empty_cache()
+                except Exception as e:
+                    logger.error(f"Error clearing CUDA cache: {str(e)}")
+
+# endregion Model Handler

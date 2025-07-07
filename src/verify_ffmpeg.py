@@ -1,11 +1,16 @@
+# region Imports
+
 import sys
 import shutil
 import src.print_color as pc
-import logging
 from src.logger_setup import ffmpeg_logger as logger
 
+# endregion Imports
 
-def verify_ffmpeg():
+
+# region Functions
+
+def verify_ffmpeg(print_path: bool = False):
     """Verify ffmpeg installation in user space"""
     logger.info("Starting ffmpeg verification")
     pc.print_info("\nVerifying ffmpeg installation")
@@ -13,7 +18,10 @@ def verify_ffmpeg():
     # Check if ffmpeg is accessible
     ffmpeg_path = shutil.which("ffmpeg")
     if ffmpeg_path:
-        success_msg = f"Found ffmpeg Path: {ffmpeg_path}"
+        if print_path:
+            success_msg = f"Found ffmpeg Path: {ffmpeg_path}"
+        else:
+            success_msg = "Found ffmpeg Path"
         logger.info(success_msg)
         pc.print_success("Installation of ffmpeg found")
         pc.print_info(success_msg)
@@ -49,6 +57,10 @@ def verify_ffmpeg():
 
     return False
 
+# endregion Functions
+
+
+# region Main
 
 if __name__ == "__main__":
     try:
@@ -62,3 +74,5 @@ if __name__ == "__main__":
             f"Unexpected error during ffmpeg verification: {str(e)}", exc_info=True
         )
         sys.exit(1)
+
+# endregion Main

@@ -1,6 +1,22 @@
+# Environment
 .venv
-.cache
-.nicegui
+venv
+.git
 [Dd]esktop.ini
 [Bb]uild
 dist
+
+# Cache
+.cache
+.nicegui
+__pycache__
+__pycache__/
+.pyc
+
+# Logging
+logs
+
+# Other
+model_cache/
+Audio/
+bak/

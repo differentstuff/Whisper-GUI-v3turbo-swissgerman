@@ -7,7 +7,6 @@ uvicorn==0.34.0
 transformers==4.47.1
 torch==2.5.1+cu118
 pydub==0.25.1
-simpleaudio==1.0.4
 openpyxl==3.1.5
 numpy==2.0.2
 ffmpeg-python==0.2.0
@@ -16,3 +15,4 @@ accelerate==1.2.1
 scipy==1.15.0
 colorama==0.4.6
 pywebview==5.3.2
+whisperx==3.3.1
